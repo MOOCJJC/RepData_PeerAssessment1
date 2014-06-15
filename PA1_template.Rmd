@@ -1,20 +1,121 @@
 # Reproducible Research: Peer Assessment 1
 
+This data analysis is to process `activity.csv` dataset and will answer the following questions:
+
+1. Whati is mean total number of steps taken per day?
+
+2. What is the average daily activity pattern?
+
+3. Fill-in the missing values in the dataset.
+
+4. Are there differences in activity patterns between weekdays and weekends?
 
 ## Loading and preprocessing the data
 
+The following R codes loaded the activity dataset and display the first several observations:
 
+```{r}
+activityData <- read.csv(file="activity.csv")
+head(activityData)
+```
 
 ## What is mean total number of steps taken per day?
 
+First, we compute the total number of steps of each day:
+```{r}
+totalStepsEachDay <- tapply(activityData$steps, activityData$date, sum)
+totalStepsEachDay
+```
 
+And we plot the histogram of the generated data and have an overall impression of the data. A `summary` command can provide the mean and median of the data.
+```{r}
+hist(totalStepsEachDay, breaks = 10)
+summary(totalStepsEachDay)
+```
 
 ## What is the average daily activity pattern?
+The following command average out the daily steps at each interval:
+```{r}
+stepsPattern <- tapply(activityData$steps, activityData$interval, mean, na.rm = TRUE)
+head(stepsPattern)
+```
 
+To extract the interval time from the dataset row names:
+```{r}
+interval <- as.integer(rownames(stepsPattern))
+```
 
+Thus, we can plot the average daily activity pattern:
+```{r}
+plot(interval, stepsPattern, type ="l")
+```
 
 ## Imputing missing values
+We can use `summary` command to identify how many `NA` values are in the dataset.
+```{r}
+summary(activityData)
+```
+There are 2304 `NA` in the dataset.  
 
+We will fill the missing values with the average steps for that interval. And the new dataset will be stored in `activityDataNArm`.
+```{r}
+activityDataNArm <- activityData
+indexNA <- which(is.na(activityDataNArm$steps))
+activityDataNArm$steps[indexNA] <- stepsPattern[sapply(activityDataNArm$interval[indexNA], toString)]
+```
 
+Again, we compute the total number of steps of each day:
+```{r}
+totalStepsEachDayNArm <- tapply(activityDataNArm$steps, activityDataNArm$date, sum)
+totalStepsEachDayNArm
+```
+
+And we plot the histogram of the newly-generated data. A `summary` command can provide the mean and median of the data.
+```{r}
+hist(totalStepsEachDayNArm, breaks = 10)
+summary(totalStepsEachDayNArm)
+```
+
+By comparing the newly-generated data and the old data, we found that the median and mean didn't change. By using this method to fill the missing data, the frequency at the median increased.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+First, we should get the weekday labels for each observations and subsetting the data into two datasets: `weekdayData` and `weekendData`:
+
+```{r}
+# Get the weekday labels for each observation.
+weekdayLabels <- weekdays(as.Date(activityDataNArm$date,format = "%Y-%m-%d"),abbreviate = TRUE)
+
+# Get the index for the weekdays.
+weekdayIndex <- which(weekdayLabels %in% c("Mon","Tue","Wed","Thu","Fri"))
+
+# Get the index for the weekends.
+weekendIndex <- which(weekdayLabels %in% c("Sat","Sun"))
+
+# Subsetting the data
+weekdayData <- activityDataNArm[weekdayIndex, ]
+head(weekdayData)
+
+weekendData <- activityDataNArm[weekendIndex, ]
+head(weekendData)
+```
+
+And we can use exactly same method to compute the average activity patterns for both weekdays and weekend.
+```{r}
+# Get the weekday pattern.
+patternWD <- tapply(weekdayData$steps, weekdayData$interval, mean, na.rm = TRUE)
+head(patternWD)
+
+# Get the weekend pattern.
+patternWE <- tapply(weekendData$steps, weekendData$interval, mean, na.rm = TRUE)
+head(patternWE)
+
+# Plot the data
+library(ggplot2)
+library(gridExtra)
+plot1 <- qplot(interval, patternWE, ylim = c(0,250), main = "Weekend", geom = "line")
+plot2 <- qplot(interval, patternWD, ylim = c(0,250), main = "Weekday", geom = "line")
+grid.arrange(plot1,plot2,nrow=2)
+```
+
+
+It looks like there is strong activity at early time of a day during weekday and the activities are more averaged during the weekends.
